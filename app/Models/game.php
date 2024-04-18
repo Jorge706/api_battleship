@@ -24,4 +24,10 @@ class game extends Model
     {
         return $this->belongsTo(User::class, 'winner');
     }
+
+    public function games()
+{
+    return $this->belongsToMany(Game::class, 'games', 'player1_id', 'player2_id');
+}
+
 }

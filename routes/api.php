@@ -32,12 +32,16 @@ Route::get('/type', [AuthController::class, 'type'])->name('type');
 Route::post('/prueba', [AuthController::class, 'prueba']);
 
 
-
 Route::middleware('jwt.auth')->group(function () { 
     Route::post('/createGame', [PartidaController::class, 'createGame'])->name('createGame');
     Route::post('/joinGame', [PartidaController::class, 'joinGame'])->name('joinGame');
     Route::post('/partidaCancelada', [PartidaController::class, 'partidaCancelada'])->name('partidaCancelada');
     Route::post('/partidaFinalizada', [PartidaController::class, 'partidaFinalizada'])->name('partidaFinalizada');
-    Route::post('/index', [PartidaController::class, 'index'])->name('index');
+    Route::get('/index', [PartidaController::class, 'index'])->name('index');
+
+    Route::post('/score', [AuthController::class, 'score'])->name('score');
+    //consultar cordenadas
+    Route::post('/consultarCordenadas', [PartidaController::class, 'consultarCordenadas'])->name('consultarCordenadas');
+    
 
 });

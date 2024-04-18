@@ -39,4 +39,16 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
+    public function gameResults()
+{
+    $games = Game::where('player1', $this->id)->orWhere('player2', $this->id)->get();
+
+    $results = $games->map(function ($game) {
+        $opponent = $game->player1 == $this->id ? $game->player2User : $game->player1User;
+        $result = $game->winner == $this->id ? 'ganado' : 'perdido';
+        return ['resultado' => $result, 'contra' => $opponent->name];
+    });
+
+    return $results;
+}
 }

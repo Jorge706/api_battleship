@@ -10,10 +10,23 @@ use App\Models\Movimiento;
 
 class PartidaController extends Controller
 {
+
+    public function consultarCordenadas()
+    {
+        $movimiento = Movimiento::find(auth()->user()->partida_actual);
+        return response()->json([
+            "mensaje" => "Movimiento encontrado",
+            "data" => $movimiento
+        ], 200);
+    }
+
+
+
+
     public function createGame(Request $request)
     { 
         //si el usuario ya tiene una partida en curso (user), no puede crear otra
-        $user = auth()->user();
+        $user = User::find(auth()->user()->id);
         if ($user->status == 'user'|| $user->status == 'guest') {
             return response()->json([
                 "mensaje" => "Ya tienes una partida en curso."
@@ -26,10 +39,16 @@ class PartidaController extends Controller
         $partida->player1 = $user->id;
         $partida->save();
         //quiero enviar el id de la partida
+        event(new \App\Events\MyEvent('NewGameCreated'));
 
+        event(new \App\Events\PartidaCreada($partida));
         return response()->json([
             "mensaje" => "Partida creada",
-            "id" => $partida->id
+            "data" => [
+                "id" => $partida->id,
+                "player1" => $user->name
+            ]
+
         ], 201);
 
     }
@@ -40,21 +59,74 @@ class PartidaController extends Controller
         $this->validate($request, [
             'id' => 'required' //id de la partida
         ]);
+        //si el id de la partida existe y esta pending o in_progress
+        
+        if (game::where('id', $request->id)->where('status', 'pending')->exists() || game::where('id', $request->id)->where('status', 'in_progress')->exists())
+        {
         $partida = game::where('id', $request->id)->first();
+
+        if ($partida->player1 == auth()->user()->id )
+        {
         $partida->status = 'cancelled';
         $partida->save();
+        //hacemos que el usuario vuelva a estar en status de guest y que el player2 tambien vuelva a estar en status de guest
+        $user = User::find(auth()->user()->id);
+        $user->status = 'inactive';
+        $user->partida_actual = null;
+        $user->save();
+
+        $user2 = User::find($partida->player2);
+        $user2->status = 'inactive';
+        $user2->partida_actual = null;
+        $user2->save();
 
         return response()->json([
             "mensaje" => "Partida Cancelada",
             // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
         ], 202);
+        }else if ($partida->player2 == auth()->user()->id)
+        {
+            $partida->status = 'cancelled';
+            $partida->save();
+            //hacemos que el usuario vuelva a estar en status de guest y que el player2 tambien vuelva a estar en status de guest
+            $user = User::find(auth()->user()->id);
+            $user->status = 'inactive';
+            $user->partida_actual = null;
+            $user->save();
+    
+            $user2 = User::find($partida->player1);
+            $user2->status = 'inactive';
+            $user2->partida_actual = null;
+            $user2->save();
+    
+            return response()->json([
+                "mensaje" => "Partida Cancelada",
+                // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
+            ], 202);
+        }
+        else
+        {
+            return response()->json([
+                "mensaje" => "No tienes permiso para cancelar esta partida."
+            ], 403);
+        }
+        
+
+        }else
+        {
+            return response()->json([
+                "mensaje" => "La partida con el ID proporcionado no existe."
+            ], 404);
+        }
+        
     }
+
 
     public function joinGame(Request $request)
     {
                 //si el usuario ya tiene una partida en curso (guest), no puede unirse a otra
-        $user = auth()->user();
-        if ($user->status == 'guest' || $user->status == 'user') {
+        $user2 = auth()->user();
+        if ($user2->status == 'guest' || $user2->status == 'user') {
             return response()->json([
                 "mensaje" => "Ya tienes una partida en curso."
             ], 400);
@@ -63,7 +135,7 @@ class PartidaController extends Controller
         $this->validate($request, [
             'id' => 'required' //id de la partida
         ]);
-        //si el id de la partida existe 
+        //si la partida existe 
         $partida = game::find($request->id);
 
         // Verificar si la partida existe
@@ -72,53 +144,73 @@ class PartidaController extends Controller
                 "mensaje" => "La partida con el ID proporcionado no existe."
             ], 404);
         }
-        $user = auth()->user();
-        $user->status = 'guest';
-        $user->save();
+        $user2 = User::find($user2->id);
 
-        $partida = game::where('id', $request->id)->first();
-        $partida->player2 = $user->id;
+        $partida->player2 = $user2->id;
         $partida->status = 'in_progress';
         $partida->save();
+        
 
         //quiero que despues de un tablero de 8x5 me de 15 posiciones aleatorias por jugador lo mande a mongo 
         $player1Positions = $this->generateRandomPositions();
         $player2Positions = $this->generateRandomPositions();
 
         //Y despues quiero que me mande a mongo las posiciones de los barcos de cada jugador
-       // Crear un nuevo movimiento para el jugador 1
+       // Crear un nuevo movimiento para el jugador user
+
+
+       
             $movimiento1 = new Movimiento();
             $movimiento1->game_id = $partida->id; // Suponiendo que tienes el objeto $partida con la partida actual
-            $movimiento1->player_id = $user->id;
-            $movimiento1->coordinate = $player1Positions[0]; // Por ejemplo, toma la primera posición aleatoria
+            $movimiento1->player_id = $partida->player1; 
+            $movimiento1->coordinate = $player1Positions; 
             $movimiento1->save();
 
             $movimiento1Id = $movimiento1->_id;
 
-            // Crear un nuevo movimiento para el jugador 2
+            $user = User::find($partida->player1);
+            $user->partida_actual = $movimiento1Id;
+            $user->save();
+
+
+            // Crear un nuevo movimiento para el jugador guest
             $movimiento2 = new Movimiento();
-            $movimiento2->game_id = $partida->id; // Suponiendo que tienes el objeto $partida con la partida actual
-            $movimiento2->player_id = $partida->player2; // Suponiendo que ya guardaste el ID del jugador 2 en la partida
-            $movimiento2->coordinate = $player2Positions[0]; // Por ejemplo, toma la primera posición aleatoria
+            $movimiento2->game_id = $partida->id;
+            $movimiento2->player_id =  $partida->player2;
+            $movimiento2->coordinate = $player2Positions; 
             $movimiento2->save();
 
+            
             $movimiento2Id = $movimiento2->_id;
-            //y despues que lo guarde en 
 
-            //regresame el id de la partida
+        //          aqui guardo cambio el estado del guest
+            // $user = User::find(auth()->user()->id);
+            $user2->status = 'guest';
+            $user2->partida_actual = $movimiento2Id;
+            $user2->save();    
+            //y guardamos el id del que se une a la partida y el stado de la partida en in_progress
+            
 
+            $user2->partida_actual = $movimiento2Id;
+            $user2->save();
 
+            //el otro se lo va a enviar al otro jugador por medio de websocket 
+
+            event(new \App\Events\PartidaCreada($partida));
+            
             return response()->json([
                 "mensaje" => "Movimientos guardados en MongoDB para ambos jugadores.",
-                "movimiento_jugador1_id" => $movimiento1Id,
-                "movimiento_jugador2_id" => $movimiento2Id,
+                "movimiento_jugador1_id" => $movimiento2Id,
+                // "movimiento_jugador2_id" => $movimiento2Id,
+                "player1Positions" => $player2Positions,
             ], 200);
     }
+
 
     public function index()
     { //enviar todas las partidas donde  las partidas que estan en pending, enviar el nombre del jugador y la id de la partida
         $partidas = game::where('status', 'pending')->get();
-        
+
         $partidas = $partidas->map(function ($partida) {
             $player1 = User::find($partida->player1);
             return [
@@ -128,7 +220,8 @@ class PartidaController extends Controller
         });
 
         return response()->json([
-            "partidas" => $partidas
+            "partidas" => $partidas,
+            // "prueba" => 'hola john'
         ], 200);
         
     }

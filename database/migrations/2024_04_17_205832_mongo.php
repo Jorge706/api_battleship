@@ -19,7 +19,7 @@ return new class extends Migration
             $collection->string('game_id');
             $collection->string('player_id');
             $collection->string('target_player_id')->nullable();
-            $collection->string('coordinate');
+            $collection->array('coordinate');
             $collection->string('hit'); //las cordenadas que cada jugador le ha atinado al otro
             $collection->timestamps();
         });

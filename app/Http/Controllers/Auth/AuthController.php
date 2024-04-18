@@ -17,6 +17,12 @@ use Illuminate\Support\Facades\Validator;
 class AuthController extends Controller
 
 {
+    public function score(Request $request)
+    {
+        $user = User::find(auth()->user()->id);
+    $results = $user->gameResults();
+    return response()->json($results, 200);
+    }   
  
     public function type()
     {
@@ -39,6 +45,9 @@ class AuthController extends Controller
         $user = new User();
         $content->signUp($user);
         $content->sendURL($user);
+
+        //cada vez que haya un store va salir un evento de weebsocket
+
 
         return response()->json([
             "mensaje"   => "Correo Enviado",

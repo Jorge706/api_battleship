@@ -22,7 +22,8 @@ return new class extends Migration
             $table->string('active')->default(false); 
             $table->integer('games_won')->default(0); 
             $table->integer('games_lost')->default(0); 
-            $table->boolean('partida')->default(false); 
+            $table->boolean('partidas')->default(false);
+            $table->string('partida_actual')->nullable();
             $table->enum('status', ['user', 'guest','inactive'])->default('inactive');
 
             // $table->string('rol')->default('user'); 
