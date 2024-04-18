@@ -1,0 +1,1 @@
+{{ __('email.activate_welcome', ['name' => $name]) }} {{ __('email.activate_introduction') }} {{ __('email.activate_body') }} {{ $activateUrl }} {{ __('email.activate_conclusion') }} {{ __('email.activate_signature') }}
