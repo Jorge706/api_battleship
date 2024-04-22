@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('phone', 10)->nullable();
+            // $table->string('phone', 10)->nullable();
             $table->string('password');
             $table->string('email')->unique();
             $table->timestamp('time_verification_end')->nullable(); 
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('games_won')->default(0); 
             $table->integer('games_lost')->default(0); 
             $table->boolean('partidas')->default(false);
-            $table->string('partida_actual')->nullable();
+            // $table->string('partida_actual')->nullable();
             $table->enum('status', ['user', 'guest','inactive'])->default('inactive');
 
             // $table->string('rol')->default('user'); 

@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('player1');
             $table->unsignedBigInteger('player2')->nullable();
             $table->unsignedBigInteger('winner')->nullable();
+            $table->string('id_coordinates')->nullable();
             $table->enum('status', ['pending', 'in_progress', 'finished','cancelled'])->default('pending');
             $table->timestamps();
 

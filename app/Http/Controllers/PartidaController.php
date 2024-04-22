@@ -31,7 +31,7 @@ class PartidaController extends Controller
             "mensaje" => "Movimiento guardado",
             "data" => $movimiento
         ], 200);
-//si el usuario le atina a una coordenada dentro de coordenadas
+        //si el usuario le atina a una coordenada dentro de coordenadas
         // if (in_array($request->coordinate, $movimiento->['coordinate'])) {
         //     $movimiento->hit_coordinates[] = $request->coordinate;
         //     $movimiento->save();
@@ -73,19 +73,20 @@ class PartidaController extends Controller
     { 
         //si el usuario ya tiene una partida en curso (user), no puede crear otra
         $user = User::find(auth()->user()->id);
-        if ($user->status == 'user'|| $user->status == 'guest') {
+        if ($user->status != 'inactive' || $user->partida_actual != null) {
             return response()->json([
                 "mensaje" => "Ya tienes una partida en curso."
             ], 400);
         }
-        $user->status = 'user';
-        $user->save();
+        
 
         $partida = new game();
         $partida->player1 = $user->id;
         $partida->save();
-        //quiero enviar el id de la partida
-        // event(new \App\Events\MyEvent('NewGameCreated'));
+
+        $user->status = 'user';
+        $user->partida_actual = $partida->id;
+        $user->save();
 
         event(new \App\Events\MyEvent('hola mundo'));
 
@@ -103,60 +104,72 @@ class PartidaController extends Controller
 
     public function partidaCancelada (Request $request)
     {
-        $this->validate($request, [
-            'id' => 'required' //id de la partida
-        ]);
-        //si el id de la partida existe y esta pending o in_progress
-        
-        if (game::where('id', $request->id)->where('status', 'pending')->exists() || game::where('id', $request->id)->where('status', 'in_progress')->exists())
-        {
-        $partida = game::where('id', $request->id)->first();
-
-        if ($partida->player1 == auth()->user()->id )
-        {
-        $partida->status = 'cancelled';
-        $partida->save();
-        //hacemos que el usuario vuelva a estar en status de guest y que el player2 tambien vuelva a estar en status de guest
         $user = User::find(auth()->user()->id);
-        $user->status = 'inactive';
-        $user->partida_actual = null;
-        $user->save();
-
-        $user2 = User::find($partida->player2);
-        $user2->status = 'inactive';
-        $user2->partida_actual = null;
-        $user2->save();
-
-        return response()->json([
-            "mensaje" => "Partida Cancelada",
-            // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
-        ], 202);
-        }else if ($partida->player2 == auth()->user()->id)
+        $idpartida = $user->partida_actual;
+        if (game::where('id', $idpartida)->exists() ) //esto es si hay partida, pero aun no sabemos si ya tiene oponente
         {
-            $partida->status = 'cancelled';
-            $partida->save();
-            //hacemos que el usuario vuelva a estar en status de guest y que el player2 tambien vuelva a estar en status de guest
-            $user = User::find(auth()->user()->id);
-            $user->status = 'inactive';
-            $user->partida_actual = null;
-            $user->save();
-    
-            $user2 = User::find($partida->player1);
-            $user2->status = 'inactive';
-            $user2->partida_actual = null;
-            $user2->save();
-    
-            return response()->json([
-                "mensaje" => "Partida Cancelada",
-                // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
-            ], 202);
-        }
-        else
-        {
-            return response()->json([
-                "mensaje" => "No tienes permiso para cancelar esta partida."
-            ], 403);
-        }
+            $partida = game::where('id', $idpartida)->first();
+                    //preguntamos si la partida esta empezada o no 
+            if ($partida && $partida->status == 'pending')
+            {
+                // $partida = game::where('id', $request->id)->first();
+                $partida->status = 'cancelled';
+                $partida->save();
+                $user->status = 'inactive';
+                $user->partida_actual = null;
+                $user->save();
+                
+            }else if ($partida->status == 'in_progress')
+            {//si ya empezo la partida, gana el otro jugador
+                 
+                if ($partida->player1 == auth()->user()->id )
+                {
+                $user->status = 'inactive';
+                $user->partida_actual = null;
+                $user->save();
+
+                $user2 = User::find($partida->player2);
+                $user2->status = 'inactive';
+                $user2->partida_actual = null;
+                $user2->save();
+
+                $partida->winner = $partida->player2;
+
+
+                return response()->json([
+                    "mensaje" => "Partida Cancelada",
+                ], 202);
+                }else if ($partida->player2 == auth()->user()->id)
+                {
+                    
+                    //hacemos que el usuario vuelva a estar en status de guest y que el player2 tambien vuelva a estar en status de guest
+                    $user = User::find(auth()->user()->id);
+                    $user->status = 'inactive';
+                    $user->partida_actual = null;
+                    $user->save();
+            
+                    $user2 = User::find($partida->player1);
+                    $user2->status = 'inactive';
+                    $user2->partida_actual = null;
+                    $user2->save();
+
+                    $partida->winner = $partida->player1;
+
+            
+                    return response()->json([
+                        "mensaje" => "Partida Cancelada",
+                        // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
+                    ], 202);
+                }
+                $partida->status = 'cancelled';
+                $partida->save();
+
+            }else if ($partida->status == 'finished'|| $partida->status == 'cancelled')
+            {
+                return response()->json([
+                    "mensaje" => "La partida ya ha finalizado."
+                ], 400);
+            }
         
 
         }else

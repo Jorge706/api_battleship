@@ -15,13 +15,18 @@ class User extends Authenticatable implements JWTSubject
 
     protected $fillable = [
         'name',
-        'lastname',
+        
         'phone',
         'password',
         'email',
         'time_verification_end',
         'email_verified_at',
         'active',
+        'games_won',
+        'games_lost',
+        'partidas',
+        'partida_actual',
+        'status',
     ];
 
     // public function role()
@@ -40,15 +45,19 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
     public function gameResults()
-{
-    $games = Game::where('player1', $this->id)->orWhere('player2', $this->id)->get();
+    {
+        $games = Game::where('player1', $this->id)->orWhere('player2', $this->id)->get();
 
-    $results = $games->map(function ($game) {
-        $opponent = $game->player1 == $this->id ? $game->player2User : $game->player1User;
-        $result = $game->winner == $this->id ? 'ganado' : 'perdido';
-        return ['resultado' => $result, 'contra' => $opponent->name];
-    });
+        $results = $games->map(function ($game) {
+            $opponent = $game->player1 == $this->id ? $game->player2User : $game->player1User;
+            $result = $game->winner == $this->id ? 'ganado' : 'perdido';
+            return ['resultado' => $result, 'contra' => $opponent->name];
+        });
 
-    return $results;
-}
+        return $results;
+    }
+    public function partidaActual()
+    {
+        return $this->belongsTo('App\Game', 'partida_actual');
+    }
 }
