@@ -40,8 +40,11 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/index', [PartidaController::class, 'index'])->name('index');
 
     Route::post('/score', [AuthController::class, 'score'])->name('score');
+
+    Route::post('/movimiento', [PartidaController::class, 'movimiento'])->name('movimiento');
+
     //consultar cordenadas
-    Route::post('/consultarCordenadas', [PartidaController::class, 'consultarCordenadas'])->name('consultarCordenadas');
+    Route::get('/consultarCordenadas', [PartidaController::class, 'consultarCordenadas'])->name('consultarCordenadas');
     
 
 });

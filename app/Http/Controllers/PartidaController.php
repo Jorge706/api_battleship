@@ -7,16 +7,62 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\game;
 use App\Models\Movimiento;  
+use Illuminate\Support\Facades\DB;
 
 class PartidaController extends Controller
 {
 
+    public function movimiento(Request $request)
+    {
+        $this->validate($request, [
+            'coordinate' => 'required' //coordenada
+        ]);
+        //si el usuario no tiene una partida en curso
+        $user = User::find(auth()->user()->id);
+        if ($user->status == 'inactive') {
+            return response()->json([
+                "mensaje" => "No tienes una partida en curso."
+            ], 400);
+        }
+
+        // $movimiento = Movimiento::find( auth()->user()->partida_actual );
+        $movimiento = DB::connection('mongodb')->collection('movimientos')->where('_id', auth()->user()->partida_actual)->first();
+        return response()->json([
+            "mensaje" => "Movimiento guardado",
+            "data" => $movimiento
+        ], 200);
+//si el usuario le atina a una coordenada dentro de coordenadas
+        // if (in_array($request->coordinate, $movimiento->['coordinate'])) {
+        //     $movimiento->hit_coordinates[] = $request->coordinate;
+        //     $movimiento->save();
+        // }
+        //y si ya le atino a todos los barcos del otro jugador
+        if (count($movimiento->hit_coordinates) == 15) {
+            $partida = game::find($movimiento->game_id);
+            $partida->status = 'finished';
+            $partida->winner = $movimiento->player_id;
+            $partida->save();
+
+            return response()->json([
+                "mensaje" => "Partida Finalizada ha ganado ",
+                "ganador" => $movimiento->player_id
+            ], 200);
+        }
+        return response()->json([
+            "mensaje" => "Movimiento guardado",
+            "data" => $movimiento
+        ], 200);
+    }
     public function consultarCordenadas()
     {
         $movimiento = Movimiento::find(auth()->user()->partida_actual);
+
+        //quiero ver si eres guest o user
         return response()->json([
             "mensaje" => "Movimiento encontrado",
-            "data" => $movimiento
+            "data" => $movimiento,
+            "posicion"=> auth()->user()->status,
+            "id_partida"=> auth()->user()->partida_actual
         ], 200);
     }
 
@@ -39,9 +85,10 @@ class PartidaController extends Controller
         $partida->player1 = $user->id;
         $partida->save();
         //quiero enviar el id de la partida
-        event(new \App\Events\MyEvent('NewGameCreated'));
+        // event(new \App\Events\MyEvent('NewGameCreated'));
 
-        event(new \App\Events\PartidaCreada($partida));
+        event(new \App\Events\MyEvent('hola mundo'));
+
         return response()->json([
             "mensaje" => "Partida creada",
             "data" => [
@@ -139,7 +186,7 @@ class PartidaController extends Controller
         $partida = game::find($request->id);
 
         // Verificar si la partida existe
-        if (!$partida) {
+        if (!$partida || $partida->status != 'pending') {
             return response()->json([
                 "mensaje" => "La partida con el ID proporcionado no existe."
             ], 404);
@@ -154,11 +201,6 @@ class PartidaController extends Controller
         //quiero que despues de un tablero de 8x5 me de 15 posiciones aleatorias por jugador lo mande a mongo 
         $player1Positions = $this->generateRandomPositions();
         $player2Positions = $this->generateRandomPositions();
-
-        //Y despues quiero que me mande a mongo las posiciones de los barcos de cada jugador
-       // Crear un nuevo movimiento para el jugador user
-
-
        
             $movimiento1 = new Movimiento();
             $movimiento1->game_id = $partida->id; // Suponiendo que tienes el objeto $partida con la partida actual
@@ -196,13 +238,15 @@ class PartidaController extends Controller
 
             //el otro se lo va a enviar al otro jugador por medio de websocket 
 
-            event(new \App\Events\PartidaCreada($partida));
-            
+            // event(new \App\Events\MyEvent('hola mundo'));
+
+            event(new \App\Events\UserJoinedGameEvent($user2, $partida)); //enviar el nombre del jugador que creo la partiday la id de la partida
+
             return response()->json([
                 "mensaje" => "Movimientos guardados en MongoDB para ambos jugadores.",
                 "movimiento_jugador1_id" => $movimiento2Id,
                 // "movimiento_jugador2_id" => $movimiento2Id,
-                "player1Positions" => $player2Positions,
+                // "player1Positions" => $player2Positions,
             ], 200);
     }
 

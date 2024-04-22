@@ -10,18 +10,18 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class PartidaCreada implements ShouldBroadcast
+class PartidaIniciada
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $partida;
+    public $message;
 
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct($message)
     {
-        // $this->partida = $partida;
+        $this->message = $message;
     }
 
     /**
@@ -31,11 +31,11 @@ class PartidaCreada implements ShouldBroadcast
      */
     public function broadcastOn()
   {
-      return ['my-channel2'];
+      return ['partida'];
   }
 
   public function broadcastAs()
   {
-      return 'my-event2';
+      return 'my-partida';
   }
 }

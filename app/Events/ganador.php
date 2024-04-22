@@ -10,18 +10,16 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class PartidaCreada implements ShouldBroadcast
+class ganador implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
-
-    public $partida;
 
     /**
      * Create a new event instance.
      */
     public function __construct()
     {
-        // $this->partida = $partida;
+        //
     }
 
     /**
@@ -29,13 +27,10 @@ class PartidaCreada implements ShouldBroadcast
      *
      * @return array<int, \Illuminate\Broadcasting\Channel>
      */
-    public function broadcastOn()
-  {
-      return ['my-channel2'];
-  }
-
-  public function broadcastAs()
-  {
-      return 'my-event2';
-  }
+    public function broadcastOn(): array
+    {
+        return [
+            new PrivateChannel('channel-name'),
+        ];
+    }
 }

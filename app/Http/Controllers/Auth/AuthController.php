@@ -31,7 +31,7 @@ class AuthController extends Controller
     }
     public function prueba()
     {
-        event(new \App\Events\MyEvent('hello world'));
+        // event(new \App\Events\MyEvent('hello world'));
     }
 
     //para hacerce un usuario (registrarse)
