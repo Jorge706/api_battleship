@@ -16,14 +16,13 @@ class UserJoinedGameEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $user;
     public $game;
     /**
      * Create a new event instance.
      */
-    public function __construct(User $user, game $game)
+    public function __construct( game $game)
     {
-        $this->user = $user;
+        // $this->user = $user;
         $this->game = $game;
     }
 

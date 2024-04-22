@@ -134,6 +134,8 @@ class PartidaController extends Controller
                 $user2->save();
 
                 $partida->winner = $partida->player2;
+                $partida->status = 'finished';
+                $partida->save();
 
 
                 return response()->json([
@@ -154,6 +156,8 @@ class PartidaController extends Controller
                     $user2->save();
 
                     $partida->winner = $partida->player1;
+                    $partida->status = 'finished';
+                    $partida->save();
 
             
                     return response()->json([
@@ -161,8 +165,7 @@ class PartidaController extends Controller
                         // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
                     ], 202);
                 }
-                $partida->status = 'cancelled';
-                $partida->save();
+                
 
             }else if ($partida->status == 'finished'|| $partida->status == 'cancelled')
             {
@@ -186,7 +189,7 @@ class PartidaController extends Controller
     {
                 //si el usuario ya tiene una partida en curso (guest), no puede unirse a otra
         $user2 = auth()->user();
-        if ($user2->status == 'guest' || $user2->status == 'user') {
+        if ($user2->status != 'guest' && $user2->partida_actual != null) {
             return response()->json([
                 "mensaje" => "Ya tienes una partida en curso."
             ], 400);
@@ -224,7 +227,7 @@ class PartidaController extends Controller
             $movimiento1Id = $movimiento1->_id;
 
             $user = User::find($partida->player1);
-            $user->partida_actual = $movimiento1Id;
+            $user->partida_actual = $partida->id;
             $user->save();
 
 
@@ -241,19 +244,19 @@ class PartidaController extends Controller
         //          aqui guardo cambio el estado del guest
             // $user = User::find(auth()->user()->id);
             $user2->status = 'guest';
-            $user2->partida_actual = $movimiento2Id;
+            $user2->partida_actual = $partida->id;
             $user2->save();    
             //y guardamos el id del que se une a la partida y el stado de la partida en in_progress
             
 
-            $user2->partida_actual = $movimiento2Id;
-            $user2->save();
+            // $user2->partida_actual = $movimiento2Id;
+            // $user2->save();
 
             //el otro se lo va a enviar al otro jugador por medio de websocket 
 
-            // event(new \App\Events\MyEvent('hola mundo'));
+            event(new \App\Events\MyEvent('hola mundo'));
 
-            event(new \App\Events\UserJoinedGameEvent($user2, $partida)); //enviar el nombre del jugador que creo la partiday la id de la partida
+            event(new \App\Events\UserJoinedGameEvent($partida)); // la id de la partida
 
             return response()->json([
                 "mensaje" => "Movimientos guardados en MongoDB para ambos jugadores.",
