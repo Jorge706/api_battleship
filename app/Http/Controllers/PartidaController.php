@@ -31,6 +31,7 @@ class PartidaController extends Controller
         }
 
         $user->status = 'user';
+        $user->save();
         $partida = game::find($user->partida_actual);
         $movimiento = Movimiento::find($partida->id_coordinates);
 
@@ -51,21 +52,76 @@ class PartidaController extends Controller
         //y ahora comparamos si la coordenada que envio es la misma que tiene su contrincante, y si si lo es entonces le sumamos un hit
 
         if (in_array($request->coordinate, $coordinateC)) {
-            if ($user->id == $partida->player1) {
+
+            if ($user->id == $partida->player1 ) {
                     if ($movimiento->hit_coordinates2 === null) {
                         $movimiento->hit_coordinates2 = [];
                     }
-                    $movimiento->hit_coordinates2 = array_merge($movimiento->hit_coordinates2, [$request->coordinate]);
-                $movimiento->save();
+                    if (!in_array($request->coordinate, $movimiento->hit_coordinates2)){ // osea que si no esta en el array
+                        $movimiento->hit_coordinates2 = array_merge($movimiento->hit_coordinates2, [$request->coordinate]);
+                        $movimiento->save();
+                        //si el usuario le atina a todos los barcos del otro jugador
+                        if (count($movimiento->hit_coordinates2) == 15) {
+                            $partida->status = 'finished';
+                            $partida->winner = $partida->player1;
+                            $partida->save();
+                            return response()->json([
+                                "mensaje" => "gano",
+                                "ganador" => $partida->player1
+                            ], 200);
+                        }
+                        return response()->json([
+                            "mensaje" => "hit",
+                            // "data" => $movimiento,
+                            "posicion"=> $user->status,
+                        ], 200);
+                    }
+                    else{
+                        return response()->json([
+                            "mensaje" => "no hit",
+                            // "data" => $movimiento,
+                            "posicion"=> $user->status,
+                        ], 200);
+                    }
             }else if ($user->id == $partida->player2)
             {
                 if ($movimiento->hit_coordinates1 === null) {
                     $movimiento->hit_coordinates1 = [];
                 }
-                $movimiento->hit_coordinates1 = array_merge($movimiento->hit_coordinates1, [$request->coordinate]);
-                $movimiento->save();
+                if (!in_array($request->coordinate, $movimiento->hit_coordinates1)){ // osea que si no esta en el array
+
+                    $movimiento->hit_coordinates1 = array_merge($movimiento->hit_coordinates1, [$request->coordinate]);
+                    $movimiento->save();
+                    //si el usuario le atina a todos los barcos del otro jugador
+                    if (count($movimiento->hit_coordinates1) == 15) {
+                        $partida->status = 'finished';
+                        $partida->winner = $partida->player1;
+                        $partida->save();
+                        return response()->json([
+                            "mensaje" => "gano",
+                            "ganador" => $partida->player1
+                        ], 200);
+                    }
+                    return response()->json([
+                        "mensaje" => "hit",
+                        // "data" => $movimiento,
+                        "posicion"=> $user->status,
+                    ], 200);
+                }
+                else{
+                    return response()->json([
+                        "mensaje" => "no hit",
+                        // "data" => $movimiento,
+                        "posicion"=> $user->status,
+                    ], 200);
+                }
             }   
         }
+        return response()->json([
+            "mensaje" => "no hit",
+            // "data" => $movimiento,
+            "posicion"=> $user->status,
+        ], 200);
         
 
 
