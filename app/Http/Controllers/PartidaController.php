@@ -40,12 +40,14 @@ class PartidaController extends Controller
             $user2 = User::find($partida->player2);
             $user2->status = 'guest';
             $user2->save();
+            $userC = $partida->player2;
             $coordinateC = $movimiento->coordinate2;
         } else if ($user->id == $partida->player2) {
             // $partida->player1->status = 'guest';
             $user1 = User::find($partida->player1);
             $user1->status = 'guest';
             $user1->save();
+            $userC = $partida->player1;
             $coordinateC = $movimiento->coordinate1;
         }
 
@@ -65,11 +67,25 @@ class PartidaController extends Controller
                             $partida->status = 'finished';
                             $partida->winner = $partida->player1;
                             $partida->save();
+
+                           $user1 = User::find($partida->player1);
+                            $user1->status = 'inactive';
+                            $user1->partida_actual = null;
+                            $user1->save();
+                            $user2 = User::find($partida->player2);
+                            $user2->status = 'inactive';
+                            $user2->partida_actual = null;
+                            $user2->save();
+
+                            event(new \App\Events\Win($userC)); 
+
                             return response()->json([
                                 "mensaje" => "gano",
                                 "ganador" => $partida->player1
                             ], 200);
                         }
+                        event(new \App\Events\Hit($userC));
+
                         return response()->json([
                             "mensaje" => "hit",
                             // "data" => $movimiento,
@@ -77,6 +93,7 @@ class PartidaController extends Controller
                         ], 200);
                     }
                     else{
+                        event(new \App\Events\NoHit($userC));
                         return response()->json([
                             "mensaje" => "no hit",
                             // "data" => $movimiento,
@@ -97,11 +114,23 @@ class PartidaController extends Controller
                         $partida->status = 'finished';
                         $partida->winner = $partida->player1;
                         $partida->save();
+                        $user1 = User::find($partida->player1);
+                            $user1->status = 'inactive';
+                            $user1->partida_actual = null;
+                            $user1->save();
+                            $user2 = User::find($partida->player2);
+                            $user2->status = 'inactive';
+                            $user2->partida_actual = null;
+                            $user2->save();
+                            event(new \App\Events\Win($userC)); 
+
                         return response()->json([
                             "mensaje" => "gano",
                             "ganador" => $partida->player1
                         ], 200);
                     }
+                    event(new \App\Events\Hit($userC)); 
+
                     return response()->json([
                         "mensaje" => "hit",
                         // "data" => $movimiento,
@@ -109,6 +138,8 @@ class PartidaController extends Controller
                     ], 200);
                 }
                 else{
+                    event(new \App\Events\NoHit($userC)); 
+
                     return response()->json([
                         "mensaje" => "no hit",
                         // "data" => $movimiento,
@@ -117,51 +148,17 @@ class PartidaController extends Controller
                 }
             }   
         }
+        event(new \App\Events\NoHit($userC));
         return response()->json([
             "mensaje" => "no hit",
             // "data" => $movimiento,
             "posicion"=> $user->status,
         ], 200);
-        
-
-
-
-
-
-
-
-
-
-
-
-        // $movimiento = Movimiento::find( auth()->user()->partida_actual );
-        // $movimiento = DB::connection('mongodb')->collection('movimientos')->where('_id', auth()->user()->partida_actual)->first();
-        return response()->json([
-            "mensaje" => "Movimiento guardado",
-            "data" => $movimiento
-        ], 200);
-        //si el usuario le atina a una coordenada dentro de coordenadas
-        // if (in_array($request->coordinate, $movimiento->['coordinate'])) {
-        //     $movimiento->hit_coordinates[] = $request->coordinate;
-        //     $movimiento->save();
-        // }
-        //y si ya le atino a todos los barcos del otro jugador
-        if (count($movimiento->hit_coordinates) == 15) {
-            $partida = game::find($movimiento->game_id);
-            $partida->status = 'finished';
-            $partida->winner = $movimiento->player_id;
-            $partida->save();
-
-            return response()->json([
-                "mensaje" => "Partida Finalizada ha ganado ",
-                "ganador" => $movimiento->player_id
-            ], 200);
-        }
-        return response()->json([
-            "mensaje" => "Movimiento guardado",
-            "data" => $movimiento
-        ], 200);
     }
+
+
+
+    
     public function consultarCordenadas()
     {
         $user = User::find(auth()->user()->id);
@@ -187,7 +184,8 @@ class PartidaController extends Controller
             "mensaje" => "Movimiento encontrado",
             "data" => $coordinate,
             "posicion"=> auth()->user()->status,
-            "id_partida"=> auth()->user()->partida_actual
+            "id_partida"=> auth()->user()->partida_actual,
+            "id_usuario"=> auth()->user()->id
         ], 200);
     }
 
@@ -219,7 +217,8 @@ class PartidaController extends Controller
             "mensaje" => "Partida creada",
             "data" => [
                 "id" => $partida->id,
-                "player1" => $user->name
+                "player1" => $user->name,
+                'userid' => $user->id
             ]
 
         ], 201);
@@ -390,6 +389,7 @@ class PartidaController extends Controller
 
             return response()->json([
                 "mensaje" => "Movimientos guardados en MongoDB para ambos jugadores.",
+                "userid" => $user2->id,
                 // "movimiento_jugador1_id" => $movimiento2Id,
                 // "movimiento_jugador2_id" => $movimiento2Id,
                 // "player1Positions" => $player2Positions,
