@@ -24,9 +24,62 @@ class PartidaController extends Controller
                 "mensaje" => "No tienes una partida en curso."
             ], 400);
         }
+        if ($user->status == 'user') {
+            return response()->json([
+                "mensaje" => "Espera a que un jugador termine su turno."
+            ], 400);
+        }
+
+        $user->status = 'user';
+        $partida = game::find($user->partida_actual);
+        $movimiento = Movimiento::find($partida->id_coordinates);
+
+        if ($user->id == $partida->player1) {
+            // $partida->player2->status = 'guest';
+            $user2 = User::find($partida->player2);
+            $user2->status = 'guest';
+            $user2->save();
+            $coordinateC = $movimiento->coordinate2;
+        } else if ($user->id == $partida->player2) {
+            // $partida->player1->status = 'guest';
+            $user1 = User::find($partida->player1);
+            $user1->status = 'guest';
+            $user1->save();
+            $coordinateC = $movimiento->coordinate1;
+        }
+
+        //y ahora comparamos si la coordenada que envio es la misma que tiene su contrincante, y si si lo es entonces le sumamos un hit
+
+        if (in_array($request->coordinate, $coordinateC)) {
+            if ($user->id == $partida->player1) {
+                    if ($movimiento->hit_coordinates2 === null) {
+                        $movimiento->hit_coordinates2 = [];
+                    }
+                    $movimiento->hit_coordinates2 = array_merge($movimiento->hit_coordinates2, [$request->coordinate]);
+                $movimiento->save();
+            }else if ($user->id == $partida->player2)
+            {
+                if ($movimiento->hit_coordinates1 === null) {
+                    $movimiento->hit_coordinates1 = [];
+                }
+                $movimiento->hit_coordinates1 = array_merge($movimiento->hit_coordinates1, [$request->coordinate]);
+                $movimiento->save();
+            }   
+        }
+        
+
+
+
+
+
+
+
+
+
+
 
         // $movimiento = Movimiento::find( auth()->user()->partida_actual );
-        $movimiento = DB::connection('mongodb')->collection('movimientos')->where('_id', auth()->user()->partida_actual)->first();
+        // $movimiento = DB::connection('mongodb')->collection('movimientos')->where('_id', auth()->user()->partida_actual)->first();
         return response()->json([
             "mensaje" => "Movimiento guardado",
             "data" => $movimiento
@@ -55,12 +108,28 @@ class PartidaController extends Controller
     }
     public function consultarCordenadas()
     {
-        $movimiento = Movimiento::find(auth()->user()->partida_actual);
+        $user = User::find(auth()->user()->id);
+        $partida = game::find($user->partida_actual);
 
-        //quiero ver si eres guest o user
+        $movimiento = Movimiento::find($partida->id_coordinates);
+        //una vez teniendo el documento de mongo vamos a hacer una consulta para obtener el coordinate1
+        if ($user->id == $partida->player1)
+        {
+            $coordinate = $movimiento->coordinate1;
+
+        }else if ($user->id == $partida->player2)
+        {
+            $coordinate = $movimiento->coordinate2;
+        }else
+        {
+            return response()->json([
+                "mensaje" => "No tienes una partida en curso."
+            ], 400);
+        }
+
         return response()->json([
             "mensaje" => "Movimiento encontrado",
-            "data" => $movimiento,
+            "data" => $coordinate,
             "posicion"=> auth()->user()->status,
             "id_partida"=> auth()->user()->partida_actual
         ], 200);
@@ -189,9 +258,10 @@ class PartidaController extends Controller
     {
                 //si el usuario ya tiene una partida en curso (guest), no puede unirse a otra
         $user2 = auth()->user();
-        if ($user2->status != 'guest' && $user2->partida_actual != null) {
+        if ($user2->status =! 'inactive' ) {
             return response()->json([
-                "mensaje" => "Ya tienes una partida en curso."
+                "mensaje" => "Ya tienes una partida en curso.",
+                "data" => $user2
             ], 400);
         }
         
@@ -221,25 +291,28 @@ class PartidaController extends Controller
             $movimiento1 = new Movimiento();
             $movimiento1->game_id = $partida->id; // Suponiendo que tienes el objeto $partida con la partida actual
             $movimiento1->player_id = $partida->player1; 
-            $movimiento1->coordinate = $player1Positions; 
+            $movimiento1->coordinate1 = $player1Positions; 
+            $movimiento1->coordinate2 = $player2Positions; 
             $movimiento1->save();
 
-            $movimiento1Id = $movimiento1->_id;
+            $movimientoId = $movimiento1->_id;
 
             $user = User::find($partida->player1);
             $user->partida_actual = $partida->id;
             $user->save();
 
+            $partida->id_coordinates = $movimientoId;
+            $partida->save();
 
             // Crear un nuevo movimiento para el jugador guest
-            $movimiento2 = new Movimiento();
-            $movimiento2->game_id = $partida->id;
-            $movimiento2->player_id =  $partida->player2;
-            $movimiento2->coordinate = $player2Positions; 
-            $movimiento2->save();
+            // $movimiento2 = new Movimiento();
+            // $movimiento2->game_id = $partida->id;
+            // $movimiento2->player_id =  $partida->player2;
+            // $movimiento2->coordinate = $player2Positions; 
+            // $movimiento2->save();
 
             
-            $movimiento2Id = $movimiento2->_id;
+            // $movimiento2Id = $movimiento2->_id;
 
         //          aqui guardo cambio el estado del guest
             // $user = User::find(auth()->user()->id);
@@ -254,13 +327,14 @@ class PartidaController extends Controller
 
             //el otro se lo va a enviar al otro jugador por medio de websocket 
 
-            event(new \App\Events\MyEvent('hola mundo'));
+            event(new \App\Events\MyEvent("hello world"));
 
-            event(new \App\Events\UserJoinedGameEvent($partida)); // la id de la partida
+            // event(new \App\Events\UserJoinedGameEvent($partida->id)); // la id de la partida
+            event(new \App\Events\UserJoinedGameEvent($partida->id)); // la id de la partida
 
             return response()->json([
                 "mensaje" => "Movimientos guardados en MongoDB para ambos jugadores.",
-                "movimiento_jugador1_id" => $movimiento2Id,
+                // "movimiento_jugador1_id" => $movimiento2Id,
                 // "movimiento_jugador2_id" => $movimiento2Id,
                 // "player1Positions" => $player2Positions,
             ], 200);

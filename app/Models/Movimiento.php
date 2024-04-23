@@ -14,5 +14,11 @@ class Movimiento extends Model
     protected $connection = 'mongodb';
     protected $collection = 'movimientos';
     protected $fillable = ['game_id', 'player_id', 'target_player_id', 'coordinate', 'hit'];
+    protected $casts = [
+        'coordinate' => 'array',
+        'coordinate2' => 'array',
+        'hits1' => 'array',
+        'hits2' => 'array',
+    ];
     
 }
