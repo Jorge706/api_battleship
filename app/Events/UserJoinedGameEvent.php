@@ -30,4 +30,9 @@ class UserJoinedGameEvent implements ShouldBroadcast
     {
         return new PrivateChannel('game.' . $this->game->id);
     }
+
+    public function broadcastAs()
+    {
+        return 'user.joined';
+    }
 }
