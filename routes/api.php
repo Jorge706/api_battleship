@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\PartidaController;
+use App\Http\Middleware\CheckUserStatus;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,19 +33,16 @@ Route::get('/type', [AuthController::class, 'type'])->name('type');
 Route::post('/prueba', [AuthController::class, 'prueba']);
 
 
-Route::middleware('jwt.auth')->group(function () { 
-    Route::post('/createGame', [PartidaController::class, 'createGame'])->name('createGame');
-    Route::post('/joinGame', [PartidaController::class, 'joinGame'])->name('joinGame');
-    Route::post('/partidaCancelada', [PartidaController::class, 'partidaCancelada'])->name('partidaCancelada');
-    Route::post('/partidaFinalizada', [PartidaController::class, 'partidaFinalizada'])->name('partidaFinalizada');
-    Route::get('/index', [PartidaController::class, 'index'])->name('index');
-
-    Route::post('/score', [AuthController::class, 'score'])->name('score');
-
-    Route::post('/movimiento', [PartidaController::class, 'movimiento'])->name('movimiento');
-
-    //consultar cordenadas
-    Route::get('/consultarCordenadas', [PartidaController::class, 'consultarCordenadas'])->name('consultarCordenadas');
-    
+Route::middleware(['jwt.auth'])->group(function () { 
+        Route::post('/score', [AuthController::class, 'score'])->name('score')->middleware(CheckUserStatus::class);
+        Route::post('/createGame', [PartidaController::class, 'createGame'])->name('createGame');
+        Route::post('/joinGame', [PartidaController::class, 'joinGame'])->name('joinGame');
+        Route::post('/partidaCancelada', [PartidaController::class, 'partidaCancelada'])->name('partidaCancelada')->middleware(CheckUserStatus::class);
+        Route::post('/partidaFinalizada', [PartidaController::class, 'partidaFinalizada'])->name('partidaFinalizada')->middleware(CheckUserStatus::class);
+        Route::get('/index', [PartidaController::class, 'index'])->name('index')->middleware(CheckUserStatus::class);
+        Route::post('/movimiento', [PartidaController::class, 'movimiento'])->name('movimiento')->middleware(CheckUserStatus::class);
+        Route::get('/consultarCordenadas', [PartidaController::class, 'consultarCordenadas'])->name('consultarCordenadas')->middleware(CheckUserStatus::class);
+        Route::get('/consultarCordenadasHit', [PartidaController::class, 'consultarCordenadasHit'])->name('consultarCordenadasHit')->middleware(CheckUserStatus::class);
+        // Route::post('/partida', [PartidaController::class, 'partida'])->name('consultarCordenadas')->middleware(CheckUserStatus::class);
 
 });

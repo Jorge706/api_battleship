@@ -53,18 +53,33 @@ class User extends Authenticatable implements JWTSubject
         //     $result = $game->winner == $this->id ? 'ganado' : 'perdido';
         //     return ['resultado' => $result, 'contra' => $opponent->name];
         // });
-        $games = Game::where('player1', $this->id)
-    ->orWhere('player2', $this->id)
-    ->whereNotIn('status', ['cancelado', 'pendiente'])
-    ->get();
+        // $games = Game::where('player1', $this->id)
+        //     ->orWhere('player2', $this->id)
+        //     ->whereNotIn('status', ['cancelado', 'pendiente'])
+        //     ->get();
 
-$results = $games->map(function ($game) {
-    $opponent = $game->player1 == $this->id ? $game->player2User : $game->player1User;
-    $result = $game->winner == $this->id ? 'ganado' : 'perdido';
-    return ['resultado' => $result, 'contra' => $opponent->name];
-});
+        // $results = $games->map(function ($game) {
+        //     $opponent = $game->player1 == $this->id ? $game->player2User : $game->player1User;
+        //     $result = $game->winner == $this->id ? 'ganado' : 'perdido';
+        //     return ['resultado' => $result, 'contra' => $opponent->name];
+        // });
+
+        $games = Game::where(function ($query) {
+            $query->where('player1', $this->id)
+                  ->orWhere('player2', $this->id);
+        })
+        ->where('status', 'finished')
+        ->get();
+
+        $results = $games->map(function ($game) {
+            $opponent = $game->player1 == $this->id ? $game->player2User : $game->player1User;
+            $opponentName = $opponent ? $opponent->name : 'Sin oponente';
+            $result = $game->winner == $this->id ? 'ganado' : 'perdido';
+            return ['resultado' => $result, 'contra' => $opponentName];
+        });
 
         return $results;
+
     }
     public function partidaActual()
     {

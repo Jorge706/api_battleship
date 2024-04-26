@@ -12,6 +12,46 @@ use Illuminate\Support\Facades\DB;
 class PartidaController extends Controller
 {
 
+    public function partida(Request $request)
+    {
+        //aqui vamos a ver si el usuario estaba en una partida en curso 
+        $user = User::find(auth()->user()->id);
+        if ($user->status == 'inactive') {
+            return response()->json([
+                "mensaje" => "NoPartida"
+            ], 200);
+        }
+        return response()->json([
+            "mensaje" => "Partida",
+        ], 200);
+    }
+    public function consultarCordenadasHit()
+    {
+        $user = User::find(auth()->user()->id);
+        $partida = game::find($user->partida_actual);
+        //quiero que me de las coordenadas que ya han sido atacadas
+        $movimiento = Movimiento::find($partida->id_coordinates);
+        if ($user->id == $partida->player1)
+        {
+            $coordinate = $movimiento->hit_coordinates1;
+        }else if ($user->id == $partida->player2)
+        {
+            $coordinate = $movimiento->hit_coordinates2;
+        }else
+        {
+            return response()->json([
+                "mensaje" => "No tienes una partida en curso."
+            ], 400);
+        }
+        
+        return response()->json([
+            "mensaje" => "Movimiento encontrado",
+            "data" => $coordinate,
+        ], 200);
+
+        
+    }
+
     public function movimiento(Request $request)
     {
         $this->validate($request, [
@@ -112,7 +152,7 @@ class PartidaController extends Controller
                     //si el usuario le atina a todos los barcos del otro jugador
                     if (count($movimiento->hit_coordinates1) == 15) {
                         $partida->status = 'finished';
-                        $partida->winner = $partida->player1;
+                        $partida->winner =$partida->player2;
                         $partida->save();
                         $user1 = User::find($partida->player1);
                             $user1->status = 'inactive';
@@ -237,6 +277,7 @@ class PartidaController extends Controller
             if ($partida && $partida->status == 'pending')
             {
                 // $partida = game::where('id', $request->id)->first();
+                event(new \App\Events\MyEvent('hola mundo'));
                 $partida->status = 'cancelled';
                 $partida->save();
                 $user->status = 'inactive';
@@ -283,7 +324,8 @@ class PartidaController extends Controller
                     $partida->status = 'finished';
                     $partida->save();
 
-            
+                    event(new \App\Events\MyEvent('hola mundo'));
+
                     return response()->json([
                         "mensaje" => "Partida Cancelada",
                         // "data"  => collect($partida)->except(['id', 'created_at', 'updated_at'])
@@ -313,6 +355,7 @@ class PartidaController extends Controller
     {
                 //si el usuario ya tiene una partida en curso (guest), no puede unirse a otra
         $user2 = auth()->user();
+        $user2 = User::find($user2->id);
         if ($user2->status =! 'inactive' ) {
             return response()->json([
                 "mensaje" => "Ya tienes una partida en curso.",
